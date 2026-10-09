@@ -148,19 +148,20 @@ def chat(req: ChatRequest, current_user: dict = Depends(get_current_user)):
         for i, c in enumerate(reranked)
     ]
 
-    if emit_debug:
-        print(f"[DEBUG] Reranker results: {json.dumps(reranker_debug, indent=2)}")
-
     # ─── 6. LLM generation (Evidence Guard inside) ──────────────────────────────
     llm_result = generate_answer(user_query, reranked, reranker_scores)
     answer_content = llm_result["content"]
     evidence_status = llm_result["evidence_status"]
 
-    if emit_debug:
-        print(f"[DEBUG] Evidence Guard: {evidence_status} / reason: {llm_result.get('evidence_guard_reason')}")
-        print(f"[DEBUG] LLM used: {llm_result['llm_used']}")
-        print(f"[DEBUG] Answer (first 200 chars): {answer_content[:200]}")
-        print("=" * 60 + "\n")
+    print("\n" + "=" * 60)
+    print(f"QUERY:\n{user_query}\n")
+    print(f"BM25:\n{json.dumps(retrieval_debug['bm25_results'][:3], indent=2)}\n")
+    print(f"VECTOR:\n{json.dumps(retrieval_debug['vector_results'][:3], indent=2)}\n")
+    print(f"RRF:\n{json.dumps(retrieval_debug['rrf_results'][:5], indent=2)}\n")
+    print(f"RERANK:\n{json.dumps(reranker_debug, indent=2)}\n")
+    print(f"EVIDENCE:\nstatus={evidence_status}, reason={llm_result.get('evidence_guard_reason')}\n")
+    print(f"FINAL:\n{answer_content[:300]}\n")
+    print("=" * 60 + "\n")
 
     # ─── 7. Build citations & sources ────────────────────────────────────────────
     citations = []

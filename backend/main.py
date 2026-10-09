@@ -71,10 +71,29 @@ def health():
         os.environ.get("GEMINI_API_KEY")
         and os.environ.get("GEMINI_API_KEY") != "your-gemini-api-key-here"
     )
+    db_ok = False
+    doc_count = 0
+    chunk_count = 0
+    try:
+        from database import get_db
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) as cnt FROM documents WHERE status = 'indexed'")
+        doc_count = cursor.fetchone()["cnt"]
+        cursor.execute("SELECT COUNT(*) as cnt FROM document_chunks")
+        chunk_count = cursor.fetchone()["cnt"]
+        conn.close()
+        db_ok = True
+    except Exception as e:
+        print(f"[Health] DB check failed: {e}")
+
     return {
-        "status": "ok",
+        "status": "ok" if db_ok else "degraded",
         "service": "VEXORA RAG Engine",
         "version": "2.1.0",
+        "database_connected": db_ok,
+        "indexed_documents": doc_count,
+        "indexed_chunks": chunk_count,
         "gemini_configured": gemini_configured,
         "debug_retrieval": os.environ.get("DEBUG_RETRIEVAL", "false"),
     }

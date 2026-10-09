@@ -30,6 +30,36 @@ export function ChatView({
   const [historySearch, setHistorySearch] = useState('');
   const [activeCitation, setActiveCitation] = useState(null);
   const [loadingStep, setLoadingStep] = useState('');
+  const [suggestions, setSuggestions] = useState([
+    {
+      id: 'attendance',
+      title: 'Attendance Policy',
+      text: 'What is the minimum attendance requirement for semester exams?',
+      has_evidence: true,
+      badge: 'Policy Query',
+    },
+    {
+      id: 'exam',
+      title: 'Internal Exams & Evaluation',
+      text: 'What is the weightage of Continuous Internal Assessment and end semester exams?',
+      has_evidence: true,
+      badge: 'Policy Query',
+    },
+    {
+      id: 'regulations',
+      title: 'Academic Regulations',
+      text: 'What are the key policy requirements in the uploaded academic regulations?',
+      has_evidence: true,
+      badge: 'Policy Query',
+    },
+    {
+      id: 'placement',
+      title: 'Placement Rules',
+      text: 'What CGPA and documents are required for campus placement eligibility?',
+      has_evidence: false,
+      badge: 'Suggested Query',
+    },
+  ]);
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
@@ -37,6 +67,21 @@ export function ChatView({
   };
 
   useEffect(() => { scrollToBottom(); }, [messages, isLoading]);
+
+  // ── Load dynamic evidence-aware suggestions ─────────────────────────────────
+  useEffect(() => {
+    if (!token) return;
+    fetch('/api/documents/suggested-queries', {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.suggestions?.length > 0) {
+          setSuggestions(data.suggestions);
+        }
+      })
+      .catch((e) => console.error('[Chat] Could not load suggested queries:', e));
+  }, [token]);
 
   // ── Load conversation list ──────────────────────────────────────────────────
   const fetchConversations = useCallback(async () => {
@@ -175,13 +220,6 @@ export function ChatView({
     handleSendMessage(inputText);
   };
 
-  const suggestions = [
-    { title: 'Attendance Policy', text: 'What is the minimum attendance requirement for semester exams?', icon: ShieldCheck },
-    { title: 'Internal Exams', text: 'When is the next internal examination and what is the evaluation criteria?', icon: Clock },
-    { title: 'Placement Rules', text: 'What CGPA and documents are required for campus placement eligibility?', icon: FileText },
-    { title: 'Academic Regulations', text: 'What are the key policy requirements in the uploaded regulations?', icon: BookOpen },
-  ];
-
   const currentAnswer = messages.filter((m) => m.role === 'assistant').slice(-1)[0];
   const activeSources = currentAnswer?.sources || [];
 
@@ -253,19 +291,38 @@ export function ChatView({
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full text-left">
                 {suggestions.map((item, idx) => {
-                  const Icon = item.icon;
+                  const isVerified = item.has_evidence;
                   return (
                     <button
                       key={idx}
                       onClick={() => handleSendMessage(item.text)}
-                      className="glass-panel-interactive p-4 text-left flex items-start gap-3 group"
+                      className="glass-panel-interactive p-4 text-left flex items-start gap-3 group relative"
                     >
-                      <div className="p-2 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 group-hover:scale-110 transition-transform">
-                        <Icon size={18} />
+                      <div
+                        className={`p-2 rounded-xl border group-hover:scale-110 transition-transform ${
+                          isVerified
+                            ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                            : 'bg-cyan-500/10 border-cyan-500/20 text-cyan-400'
+                        }`}
+                      >
+                        {isVerified ? <ShieldCheck size={18} /> : <Sparkles size={18} />}
                       </div>
-                      <div className="space-y-1">
-                        <span className="block text-xs font-bold text-white group-hover:text-cyan-300 transition-colors">{item.title}</span>
-                        <p className="text-[11px] text-slate-400 line-clamp-2">{item.text}</p>
+                      <div className="space-y-1 flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-1.5">
+                          <span className="block text-xs font-bold text-white group-hover:text-cyan-300 transition-colors truncate">
+                            {item.title}
+                          </span>
+                          <span
+                            className={`text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0 ${
+                              isVerified
+                                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                                : 'bg-white/5 text-slate-400 border border-white/10'
+                            }`}
+                          >
+                            {item.badge || (isVerified ? 'Verified Evidence' : 'Suggested Query')}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-400 line-clamp-2 leading-relaxed">{item.text}</p>
                       </div>
                     </button>
                   );

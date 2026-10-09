@@ -39,7 +39,7 @@ export function CommandCenterView({ user, documents = [], onNavigate, onUploadCl
   const latestVersion = documents[0]?.version || 'v1.0';
 
   const stats = [
-    { label: 'Knowledge Categories', value: String(categoriesCount || 1), change: 'Categorized', icon: Database, color: 'text-cyan-400' },
+    { label: 'Knowledge Categories', value: String(totalDocs === 0 ? 0 : categoriesCount), change: 'Categorized', icon: Database, color: 'text-cyan-400' },
     { label: 'Indexed Documents', value: String(totalDocs), change: '100% verified', icon: FileText, color: 'text-violet-400' },
     { label: 'Indexed Knowledge Chunks', value: totalChunks.toLocaleString(), change: 'Vector & BM25', icon: Layers, color: 'text-magenta-400' },
     { label: 'Latest Indexed Version', value: latestVersion, change: 'Active in RAG', icon: Clock, color: 'text-emerald-400' },
@@ -178,8 +178,8 @@ export function CommandCenterView({ user, documents = [], onNavigate, onUploadCl
               <div className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
                 <Database size={20} />
               </div>
-              <p className="text-xs font-medium text-slate-200">14 Verified Documents Connected</p>
-              <span className="text-[10px] text-slate-400">842 Chunks • 12 Topics</span>
+              <p className="text-xs font-medium text-slate-200">{totalDocs} Verified Documents Connected</p>
+              <span className="text-[10px] text-slate-400">{totalChunks.toLocaleString()} Chunks • {categoriesCount} Categories</span>
             </div>
           </div>
         </div>
@@ -228,9 +228,19 @@ export function CommandCenterView({ user, documents = [], onNavigate, onUploadCl
                   <td className="p-3 font-mono text-slate-400">{doc.chunks}</td>
                   <td className="p-3 text-slate-400">{doc.date}</td>
                   <td className="p-3 text-right">
-                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold">
-                      ● Indexed
-                    </span>
+                    {doc.status === 'indexed' ? (
+                      <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold">
+                        ● Indexed
+                      </span>
+                    ) : doc.status === 'processing' ? (
+                      <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-bold">
+                        ● Processing
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded-full bg-red-500/20 text-red-300 border border-red-500/30 text-[10px] font-bold">
+                        ● {doc.status || 'Failed'}
+                      </span>
+                    )}
                   </td>
                 </tr>
               ))}

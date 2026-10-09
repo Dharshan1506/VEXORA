@@ -2,22 +2,17 @@ import React, { useState } from 'react';
 import {
   Upload,
   Search,
-  Filter,
   Grid,
   List,
   FileText,
   Trash2,
   Eye,
   GitCompare,
-  Download,
   Layers,
-  CheckCircle2,
-  Clock,
-  Sparkles,
-  Tag
+  FolderOpen
 } from 'lucide-react';
 
-export function VaultView({ documents, onUploadClick, onViewDocument, onCompareDocument, onDeleteDocument }) {
+export function VaultView({ documents = [], onUploadClick, onViewDocument, onCompareDocument, onDeleteDocument }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [viewMode, setViewMode] = useState('grid');
@@ -25,10 +20,44 @@ export function VaultView({ documents, onUploadClick, onViewDocument, onCompareD
   const categories = ['All', 'Academic', 'Examination', 'Hostel', 'Placement', 'Rules', 'General'];
 
   const filteredDocs = documents.filter((doc) => {
-    const matchesSearch = doc.name.toLowerCase().includes(searchTerm.toLowerCase()) || doc.category.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCat = selectedCategory === 'All' || doc.category.toLowerCase() === selectedCategory.toLowerCase();
+    const docCat = doc.category || 'General';
+    const matchesSearch =
+      doc.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      docCat.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCat =
+      selectedCategory === 'All' || docCat.toLowerCase() === selectedCategory.toLowerCase();
     return matchesSearch && matchesCat;
   });
+
+  const renderStatusBadge = (status) => {
+    if (status === 'indexed') {
+      return (
+        <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold">
+          ● Indexed
+        </span>
+      );
+    }
+    if (status === 'processing') {
+      return (
+        <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-bold">
+          ● Processing
+        </span>
+      );
+    }
+    return (
+      <span className="px-2 py-0.5 rounded-full bg-red-500/20 text-red-300 border border-red-500/30 text-[10px] font-bold">
+        ● {status || 'Failed'}
+      </span>
+    );
+  };
+
+  const getDocDate = (doc) => {
+    return doc.upload_date || doc.uploadDate || (doc.created_at ? doc.created_at.slice(0, 10) : 'Recent');
+  };
+
+  const getDocChunks = (doc) => {
+    return doc.total_chunks ?? doc.chunks ?? 0;
+  };
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto animate-in fade-in duration-300">
@@ -38,7 +67,7 @@ export function VaultView({ documents, onUploadClick, onViewDocument, onCompareD
           <h1 className="text-2xl font-extrabold text-white flex items-center gap-2">
             <span>Knowledge Vault</span>
             <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
-              {filteredDocs.length} Documents
+              {filteredDocs.length} {filteredDocs.length === 1 ? 'Document' : 'Documents'}
             </span>
           </h1>
           <p className="text-slate-400 text-xs mt-1">
@@ -105,8 +134,31 @@ export function VaultView({ documents, onUploadClick, onViewDocument, onCompareD
         </div>
       </div>
 
-      {/* Grid or List View */}
-      {viewMode === 'grid' ? (
+      {/* Empty State */}
+      {filteredDocs.length === 0 ? (
+        <div className="glass-panel p-12 text-center space-y-4">
+          <FolderOpen size={36} className="mx-auto text-slate-500" />
+          <div className="space-y-1">
+            <h3 className="text-sm font-bold text-slate-200">
+              No documents found {selectedCategory !== 'All' ? `in category "${selectedCategory}"` : ''}
+            </h3>
+            <p className="text-xs text-slate-400 max-w-sm mx-auto">
+              {selectedCategory !== 'All'
+                ? `Upload a document assigned to ${selectedCategory} or switch to "All" to view indexed files.`
+                : 'Upload university policies or handbooks to begin querying with VEXORA.'}
+            </p>
+          </div>
+          {selectedCategory !== 'All' && (
+            <button
+              onClick={() => setSelectedCategory('All')}
+              className="px-4 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-xs text-cyan-300 font-semibold"
+            >
+              View All Documents
+            </button>
+          )}
+        </div>
+      ) : viewMode === 'grid' ? (
+        /* Grid View */
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredDocs.map((doc) => (
             <div key={doc.id} className="glass-panel-interactive p-6 space-y-4 flex flex-col justify-between group">
@@ -119,9 +171,7 @@ export function VaultView({ documents, onUploadClick, onViewDocument, onCompareD
                     <span className="px-2 py-0.5 rounded bg-white/5 border border-white/10 text-[10px] font-mono font-bold text-cyan-300">
                       {doc.version || 'v1.0'}
                     </span>
-                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold">
-                      ● Indexed
-                    </span>
+                    {renderStatusBadge(doc.status)}
                   </div>
                 </div>
 
@@ -129,16 +179,16 @@ export function VaultView({ documents, onUploadClick, onViewDocument, onCompareD
                   <h3 className="text-sm font-bold text-white group-hover:text-cyan-300 transition-colors line-clamp-1">
                     {doc.name}
                   </h3>
-                  <span className="text-[11px] text-slate-400 font-medium block mt-0.5">{doc.category}</span>
+                  <span className="text-[11px] text-slate-400 font-medium block mt-0.5">{doc.category || 'General'}</span>
                 </div>
               </div>
 
               {/* Stats Footer */}
               <div className="pt-4 border-t border-white/10 flex items-center justify-between text-xs text-slate-400 font-mono">
                 <span className="flex items-center gap-1">
-                  <Layers size={14} className="text-cyan-400" /> {doc.chunks || 450} Chunks
+                  <Layers size={14} className="text-cyan-400" /> {getDocChunks(doc)} Chunks
                 </span>
-                <span>{doc.uploadDate || '2026-09-20'}</span>
+                <span>{getDocDate(doc)}</span>
               </div>
 
               {/* Actions */}
@@ -189,15 +239,11 @@ export function VaultView({ documents, onUploadClick, onViewDocument, onCompareD
                     <FileText size={18} className="text-cyan-400" />
                     {doc.name}
                   </td>
-                  <td className="p-4">{doc.category}</td>
+                  <td className="p-4">{doc.category || 'General'}</td>
                   <td className="p-4 font-mono font-bold text-cyan-300">{doc.version || 'v1.0'}</td>
-                  <td className="p-4 font-mono text-slate-400">{doc.chunks || 450}</td>
-                  <td className="p-4 text-slate-400">{doc.uploadDate || '2026-09-20'}</td>
-                  <td className="p-4">
-                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold">
-                      ● Indexed
-                    </span>
-                  </td>
+                  <td className="p-4 font-mono text-slate-400">{getDocChunks(doc)}</td>
+                  <td className="p-4 text-slate-400">{getDocDate(doc)}</td>
+                  <td className="p-4">{renderStatusBadge(doc.status)}</td>
                   <td className="p-4 text-right space-x-2">
                     <button
                       onClick={() => onViewDocument(doc)}

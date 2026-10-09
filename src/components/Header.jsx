@@ -4,14 +4,11 @@ import {
   Bell,
   Sun,
   Moon,
-  Sparkles,
-  ShieldCheck,
   Zap,
-  Globe,
   X
 } from 'lucide-react';
 
-export function Header({ currentView, theme, setTheme, onOpenGlobalSearch, isBackendLive }) {
+export function Header({ currentView, theme, setTheme, onOpenGlobalSearch, isBackendLive, documents = [] }) {
   const [showNotifications, setShowNotifications] = useState(false);
 
   const titles = {
@@ -27,11 +24,43 @@ export function Header({ currentView, theme, setTheme, onOpenGlobalSearch, isBac
     settings: 'Platform Settings & Configuration'
   };
 
-  const notifications = [
-    { id: 1, title: 'Academic Regulations 2026 Indexed', time: '10m ago', type: 'info' },
-    { id: 2, title: 'Conflict detected: Attendance Policy', time: '1h ago', type: 'warning' },
-    { id: 3, title: 'Vector index synced (842 chunks)', time: '3h ago', type: 'success' },
-  ];
+  const totalChunks = documents.reduce((acc, d) => acc + (d.total_chunks || 0), 0);
+  const latestDoc = documents[0];
+
+  // Dynamic system notifications based on real vault state
+  const notifications = [];
+  if (latestDoc) {
+    notifications.push({
+      id: 1,
+      title: `${latestDoc.name} (${latestDoc.version || 'v1.0'}) Indexed`,
+      time: latestDoc.upload_date || 'Recent',
+      type: 'info',
+    });
+  }
+  if (totalChunks > 0) {
+    notifications.push({
+      id: 2,
+      title: `Hybrid index active (${totalChunks.toLocaleString()} chunks synced)`,
+      time: 'Live',
+      type: 'success',
+    });
+  }
+  if (documents.length > 1) {
+    notifications.push({
+      id: 3,
+      title: `${documents.length} verified university documents available in vault`,
+      time: 'Synced',
+      type: 'info',
+    });
+  }
+  if (notifications.length === 0) {
+    notifications.push({
+      id: 0,
+      title: 'Knowledge Engine initialized and awaiting document ingestion',
+      time: 'Ready',
+      type: 'info',
+    });
+  }
 
   return (
     <header className="relative z-10 h-16 bg-[#070b19]/60 backdrop-blur-xl border-b border-white/10 px-6 flex items-center justify-between">
@@ -60,9 +89,13 @@ export function Header({ currentView, theme, setTheme, onOpenGlobalSearch, isBac
 
         {/* Backend Status Badge */}
         <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900/60 border border-white/10 text-xs font-medium">
-          <span className={`w-2 h-2 rounded-full ${isBackendLive ? 'bg-emerald-400 shadow-[0_0_8px_#34d399]' : 'bg-amber-400 shadow-[0_0_8px_#fbbf24]'}`} />
+          <span
+            className={`w-2 h-2 rounded-full ${
+              isBackendLive ? 'bg-emerald-400 shadow-[0_0_8px_#34d399]' : 'bg-red-400 shadow-[0_0_8px_#f87171]'
+            }`}
+          />
           <span className="hidden lg:inline text-slate-300">
-            {isBackendLive ? 'Knowledge Engine Live' : 'RAG Standby'}
+            {isBackendLive ? 'Knowledge Engine Live' : 'Knowledge Engine Offline'}
           </span>
         </div>
 

@@ -138,6 +138,7 @@ export default function App() {
             setTheme={setTheme}
             onOpenGlobalSearch={() => setCurrentView('vault')}
             isBackendLive={isBackendLive}
+            documents={documents}
           />
 
           <main className="flex-1 overflow-y-auto">
@@ -177,14 +178,18 @@ export default function App() {
                   setSelectedDoc(doc);
                   setCurrentView('viewer');
                 }}
-                onCompareDocument={(doc) => setCurrentView('compare')}
+                onCompareDocument={(doc) => {
+                  setSelectedDoc(doc);
+                  setCurrentView('compare');
+                }}
                 onDeleteDocument={handleDeleteDocument}
               />
             )}
 
             {currentView === 'viewer' && (
               <DocumentViewer
-                document={selectedDoc}
+                document={selectedDoc || documents[0]}
+                token={token}
                 onAskAboutDoc={(docName) => {
                   setCurrentView('chat');
                   setPendingQuery(`What are the key policy requirements in ${docName}?`);
@@ -192,7 +197,13 @@ export default function App() {
               />
             )}
 
-            {currentView === 'compare' && <CompareView documents={documents} />}
+            {currentView === 'compare' && (
+              <CompareView
+                documents={documents}
+                token={token}
+                initialDoc={selectedDoc}
+              />
+            )}
             {currentView === 'conflict' && <ConflictView token={token} />}
             {currentView === 'network' && <NetworkView />}
             {currentView === 'insights' && <InsightsView />}

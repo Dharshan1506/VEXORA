@@ -46,16 +46,23 @@ def rerank(
         (reranked_chunks, scores)
         where scores[i] corresponds to reranked_chunks[i]
     """
+    import math
+
     if not chunks:
         return [], []
 
     reranker = _load_reranker()
 
     if reranker is None:
-        # Fallback: return top_k in current order with placeholder scores
+        # Fallback: return top_k in current order with calibrated surrogate scores
         result = chunks[:top_k]
-        # Use normalised RRF scores as surrogate
-        scores = [c.get("rrf_score", 0.5) for c in result]
+        max_rrf = 2.0 / float(int(os.environ.get("RRF_K", "60")) + 1)
+        scores = []
+        for c in result:
+            raw_rrf = float(c.get("rrf_score", 0.016))
+            norm = min(1.0, max(0.05, raw_rrf / max_rrf))
+            logit = math.log(norm / (1.0 - norm + 1e-6))
+            scores.append(logit)
         return result, scores
 
     pairs = [(query, c["content"]) for c in chunks]
@@ -71,15 +78,28 @@ def rerank(
         reranker_scores = []
         for s, c in top_scored:
             c_copy = dict(c)
-            c_copy["reranker_score"] = float(s)
+            s_float = float(s)
+            c_copy["reranker_score"] = s_float
+            if -30 < s_float < 30:
+                c_copy["confidence"] = 1.0 / (1.0 + math.exp(-s_float))
+            elif s_float >= 30:
+                c_copy["confidence"] = 1.0
+            else:
+                c_copy["confidence"] = 0.0
             reranked_chunks.append(c_copy)
-            reranker_scores.append(float(s))
+            reranker_scores.append(s_float)
         return reranked_chunks, reranker_scores
 
     except Exception as e:
         print(f"[Reranker] Predict failed: {e}. Using RRF order fallback.")
         result = chunks[:top_k]
-        scores = [c.get("rrf_score", 0.5) for c in result]
+        max_rrf = 2.0 / float(int(os.environ.get("RRF_K", "60")) + 1)
+        scores = []
+        for c in result:
+            raw_rrf = float(c.get("rrf_score", 0.016))
+            norm = min(1.0, max(0.05, raw_rrf / max_rrf))
+            logit = math.log(norm / (1.0 - norm + 1e-6))
+            scores.append(logit)
         return result, scores
 
 

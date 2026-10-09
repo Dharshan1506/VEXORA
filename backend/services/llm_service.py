@@ -42,6 +42,8 @@ def evidence_guard(
     Returns:
         (sufficient: bool, reason: str)
     """
+    import math
+
     if not reranked_chunks:
         return False, "no_chunks_retrieved"
 
@@ -51,7 +53,20 @@ def evidence_guard(
     # If reranker scores are available, check the top score against threshold
     if reranker_scores and len(reranker_scores) > 0:
         top_score = reranker_scores[0]
-        if top_score < EVIDENCE_SCORE_THRESHOLD:
+        # Calibrate top_score (logit) to probability [0, 1]
+        if top_score < -25:
+            conf = 0.0
+        elif top_score > 25:
+            conf = 1.0
+        else:
+            conf = 1.0 / (1.0 + math.exp(-top_score))
+
+        top_chunk = reranked_chunks[0]
+        bm25_score = top_chunk.get("bm25_score", 0.0) or 0.0
+        vector_score = top_chunk.get("vector_score", 0.0) or 0.0
+
+        # Reject if reranker confidence is below threshold AND neither BM25 nor Vector retriever found a strong signal
+        if conf < EVIDENCE_SCORE_THRESHOLD and bm25_score < 3.5 and vector_score < 0.35:
             return (
                 False,
                 f"top_reranker_score_{top_score:.3f}_below_threshold_{EVIDENCE_SCORE_THRESHOLD}",
